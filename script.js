@@ -1,6 +1,10 @@
 /* ═══════════════════════════════════════════════════════════
    Guardian — Main Application Script
+   Dengan integrasi Gemini AI untuk deteksi penipuan
 ═══════════════════════════════════════════════════════════ */
+
+// ── Ganti dengan API Key Google AI Studio kamu ───────────────
+const GEMINI_API_KEY = "AIzaSyCaMPy6ne6CePLBMCd1b9kbexrZG7HV96I"; // ← GANTI JIKA PERLU
 
 const Guardian = (() => {
   const PAGES = ["home", "checker", "url", "message"];
@@ -10,15 +14,55 @@ const Guardian = (() => {
   let mobileOpen = false;
   let countersRun = false;
 
-  /* ── Page Router ──────────────────────────────────────── */
+  /* ═══════════════════════════════════════════════════════
+     GEMINI AI — Core
+  ═══════════════════════════════════════════════════════ */
+
+  async function askGemini(systemPrompt, userMessage) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: `${systemPrompt}\n\n${userMessage}` }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 1000,
+        },
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(
+        `Gemini API error: ${res.status} — ${err?.error?.message || "Unknown"}`,
+      );
+    }
+    const data = await res.json();
+    return data.candidates[0].content.parts[0].text;
+  }
+
+  function parseJSON(text) {
+    try {
+      return JSON.parse(text.replace(/```json|```/g, "").trim());
+    } catch {
+      return null;
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     PAGE ROUTER
+  ═══════════════════════════════════════════════════════ */
+
   function go(name) {
     if (!PAGES.includes(name)) return;
-
-    // Close menus
     closeDropdown();
     closeMobile();
 
-    // Hide all pages
     PAGES.forEach((p) => {
       const el = document.getElementById("page-" + p);
       if (el) el.classList.add("hidden");
@@ -31,7 +75,6 @@ const Guardian = (() => {
     target.classList.add("page-enter");
     setTimeout(() => target.classList.remove("page-enter"), 400);
 
-    // Inject shared footer into sub-pages
     const footerSlots = {
       checker: "checker-footer",
       url: "url-footer",
@@ -46,26 +89,18 @@ const Guardian = (() => {
       }
     }
 
-    // Reset result panels
-    if (name === "checker") {
+    if (name === "checker")
       document.getElementById("checker-result").classList.add("hidden");
-    }
-    if (name === "url") {
+    if (name === "url")
       document.getElementById("url-result").classList.add("hidden");
-    }
-    if (name === "message") {
-      resetMsg();
-    }
+    if (name === "message") resetMsg();
 
     currentPage = name;
     updateNav(name);
     window.scrollTo({ top: 0, behavior: "smooth" });
-
-    // Re-run reveal for new page
     setTimeout(runReveal, 100);
   }
 
-  /* ── Nav Highlight ────────────────────────────────────── */
   function updateNav(page) {
     document
       .querySelectorAll(".nav-btn")
@@ -110,11 +145,8 @@ const Guardian = (() => {
   function toggleMobile() {
     mobileOpen = !mobileOpen;
     const menu = document.getElementById("mobile-menu");
-    if (mobileOpen) {
-      menu.classList.remove("hidden");
-    } else {
-      menu.classList.add("hidden");
-    }
+    if (mobileOpen) menu.classList.remove("hidden");
+    else menu.classList.add("hidden");
   }
 
   function closeMobile() {
@@ -140,56 +172,150 @@ const Guardian = (() => {
     if (currentPage !== "home") {
       go("home");
       setTimeout(() => {
-        const el = document.getElementById("stats");
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        document
+          .getElementById("stats")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 400);
     } else {
-      const el = document.getElementById("stats");
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      document
+        .getElementById("stats")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
 
   /* ── Hero Search ──────────────────────────────────────── */
   function heroSearch() {
-    const val = document.getElementById("hero-search").value.trim();
-    go("checker");
-    if (val) {
-      setTimeout(() => {
-        const input = document.getElementById("checker-input");
-        if (input) {
-          input.value = val;
-          input.focus();
-        }
-      }, 350);
+    const val = document.getElementById("hero-search")?.value.trim();
+    if (!val) return;
+    if (/^[\+\d\s\-\(\)]{7,}$/.test(val)) {
+      document.getElementById("checker-input").value = val;
+      go("checker");
+      setTimeout(() => runChecker(), 350);
+    } else if (/^https?:\/\//i.test(val) || /^[\w.-]+\.[a-z]{2,}/i.test(val)) {
+      document.getElementById("url-input").value = val;
+      go("url");
+      setTimeout(() => runUrl(), 350);
+    } else {
+      document.getElementById("msg-input").value = val;
+      go("message");
+      setTimeout(() => runMessage(), 350);
     }
   }
 
-  /* ── Scan Simulation ──────────────────────────────────── */
-  function simulateScan(btnId, callback) {
-    const btn = document.getElementById(btnId);
-    if (!btn) return;
-    const orig = btn.innerHTML;
+  /* ═══════════════════════════════════════════════════════
+     PEMERIKSA NOMOR — Gemini AI
+  ═══════════════════════════════════════════════════════ */
+
+  async function runChecker() {
+    const input = document.getElementById("checker-input")?.value.trim();
+    if (!input) {
+      toast(
+        "warning",
+        "Input Kosong",
+        "Masukkan nomor telepon terlebih dahulu.",
+      );
+      return;
+    }
+
+    const btn = document.getElementById("checker-submit");
+    const origHTML = btn.innerHTML;
     btn.innerHTML = '<span class="spinner"></span>';
     btn.disabled = true;
-    setTimeout(() => {
-      btn.innerHTML = orig;
+    document.getElementById("checker-result").classList.add("hidden");
+
+    const system = `Kamu adalah sistem deteksi penipuan telepon profesional. Analisis nomor telepon yang diberikan dan kembalikan HANYA valid JSON tanpa teks apapun di luar JSON, tanpa markdown.
+
+Format JSON yang harus dikembalikan:
+{
+  "is_scam": boolean,
+  "risk_score": number antara 0-100,
+  "threat_type": string,
+  "operator": string,
+  "location": string,
+  "last_active": string,
+  "report_count": number,
+  "summary": string 1-2 kalimat Bahasa Indonesia,
+  "active_since": string
+}`;
+
+    try {
+      const raw = await askGemini(
+        system,
+        `Analisis nomor telepon ini: ${input}`,
+      );
+      const data = parseJSON(raw);
+      if (!data) throw new Error("Gagal parsing respons AI");
+      renderChecker(data);
+    } catch (err) {
+      console.error(err);
+      toast(
+        "error",
+        "Gagal Menganalisis",
+        err.message || "Periksa koneksi internet atau API key.",
+      );
+    } finally {
+      btn.innerHTML = origHTML;
       btn.disabled = false;
-      callback();
-    }, 1400);
+    }
   }
 
-  /* ── Checker ──────────────────────────────────────────── */
-  function runChecker() {
-    simulateScan("checker-submit", () => {
-      const result = document.getElementById("checker-result");
-      result.classList.remove("hidden");
-      result.classList.add("page-enter");
-      setTimeout(() => result.classList.remove("page-enter"), 400);
-      setTimeout(
-        () => result.scrollIntoView({ behavior: "smooth", block: "start" }),
-        50,
-      );
+  function renderChecker(d) {
+    const result = document.getElementById("checker-result");
+    result.classList.remove("hidden");
+    result.classList.add("page-enter");
+    setTimeout(() => result.classList.remove("page-enter"), 400);
+
+    const badge = result.querySelector("[class*='badge-']");
+    if (badge) {
+      badge.className = d.is_scam
+        ? "badge-danger"
+        : "badge-success-sm text-sm px-4 py-1.5";
+      badge.textContent = d.is_scam
+        ? "⚠ Penipuan Terdeteksi"
+        : "✓ Terlihat Aman";
+    }
+
+    const summaryP = result.querySelector(".text-center .text-slate-400");
+    if (summaryP) summaryP.innerHTML = d.summary;
+
+    const rows = result.querySelectorAll(".info-row span:last-child");
+    const rowData = [
+      { text: d.threat_type, cls: "text-white font-medium" },
+      { text: d.operator, cls: "text-cyan-400 font-medium" },
+      { text: d.location, cls: "text-white font-medium" },
+      {
+        text: d.last_active,
+        cls: d.is_scam
+          ? "text-orange-400 font-medium"
+          : "text-green-400 font-medium",
+      },
+    ];
+    rows.forEach((row, i) => {
+      if (rowData[i]) {
+        row.textContent = rowData[i].text;
+        row.className = rowData[i].cls;
+      }
     });
+
+    const metrics = result.querySelectorAll(".metric-box p.font-bold");
+    if (metrics[0])
+      metrics[0].textContent = d.report_count.toLocaleString("id-ID");
+    if (metrics[1]) {
+      metrics[1].textContent = `${d.risk_score}/100`;
+      metrics[1].className = `font-bold text-xl ${d.risk_score >= 70 ? "text-red-400" : d.risk_score >= 40 ? "text-yellow-400" : "text-green-400"}`;
+    }
+    if (metrics[2])
+      metrics[2].textContent = d.active_since || "Tidak Diketahui";
+
+    setTimeout(
+      () => result.scrollIntoView({ behavior: "smooth", block: "start" }),
+      50,
+    );
+    toast(
+      d.is_scam ? "warning" : "success",
+      d.is_scam ? "Waspada!" : "Nomor Aman",
+      d.summary,
+    );
   }
 
   function reportNumber() {
@@ -200,66 +326,278 @@ const Guardian = (() => {
     );
   }
 
-  /* ── URL Checker ──────────────────────────────────────── */
-  function runUrl() {
-    simulateScan("url-submit", () => {
-      const result = document.getElementById("url-result");
-      result.classList.remove("hidden");
-      result.classList.add("page-enter");
-      setTimeout(() => result.classList.remove("page-enter"), 400);
-      // Animate risk circle
-      setTimeout(() => {
-        const arc = document.getElementById("risk-arc");
-        const num = document.getElementById("risk-num");
-        if (arc) {
-          // 85/100 → dashoffset = 314 - (85/100 * 314) = 314 - 266.9 = 47.1
-          arc.style.strokeDashoffset = "47";
-        }
-        if (num) animateNumber(num, 0, 85, 1200);
-      }, 100);
-      setTimeout(
-        () => result.scrollIntoView({ behavior: "smooth", block: "start" }),
-        50,
+  /* ═══════════════════════════════════════════════════════
+     PEMERIKSA URL — Gemini AI
+  ═══════════════════════════════════════════════════════ */
+
+  async function runUrl() {
+    const input = document.getElementById("url-input")?.value.trim();
+    if (!input) {
+      toast("warning", "Input Kosong", "Masukkan URL terlebih dahulu.");
+      return;
+    }
+
+    const btn = document.getElementById("url-submit");
+    const origHTML = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span>';
+    btn.disabled = true;
+    document.getElementById("url-result").classList.add("hidden");
+
+    const system = `Kamu adalah sistem keamanan siber profesional. Analisis URL berikut untuk mendeteksi phishing, malware, dan penipuan. Kembalikan HANYA valid JSON tanpa teks apapun di luar JSON, tanpa markdown.
+
+Format JSON:
+{
+  "is_dangerous": boolean,
+  "risk_score": number antara 0-100,
+  "threat_type": string,
+  "domain_age": string,
+  "ssl_status": string yaitu Valid atau Tidak Valid atau Tidak Ada,
+  "summary": string 1-2 kalimat Bahasa Indonesia,
+  "checks": {
+    "domain_spoofing": boolean true jika gagal berbahaya,
+    "whois_hidden": boolean true jika gagal berbahaya,
+    "malware_clean": boolean true jika lulus aman,
+    "ip_blacklisted": boolean true jika gagal berbahaya
+  }
+}`;
+
+    try {
+      const raw = await askGemini(system, `Analisis URL ini: ${input}`);
+      const data = parseJSON(raw);
+      if (!data) throw new Error("Gagal parsing respons AI");
+      renderUrl(data);
+    } catch (err) {
+      console.error(err);
+      toast(
+        "error",
+        "Gagal Menganalisis",
+        err.message || "Periksa koneksi internet atau API key.",
       );
-    });
+    } finally {
+      btn.innerHTML = origHTML;
+      btn.disabled = false;
+    }
   }
 
-  /* ── Message Analysis ─────────────────────────────────── */
-  function runMessage() {
-    const input = document.getElementById("msg-input");
-    if (!input || input.value.trim() === "") {
+  function renderUrl(d) {
+    const result = document.getElementById("url-result");
+    result.classList.remove("hidden");
+    result.classList.add("page-enter");
+    setTimeout(() => result.classList.remove("page-enter"), 400);
+
+    setTimeout(() => {
+      const arc = document.getElementById("risk-arc");
+      const numEl = document.getElementById("risk-num");
+      if (arc) arc.style.strokeDashoffset = 314 - (314 * d.risk_score) / 100;
+      if (numEl) animateNumber(numEl, 0, d.risk_score, 1200);
+      if (arc)
+        arc.style.stroke =
+          d.risk_score >= 70
+            ? "#ef4444"
+            : d.risk_score >= 40
+              ? "#f59e0b"
+              : "#22c55e";
+    }, 100);
+
+    const metricBoxes = result.querySelectorAll(".metric-box");
+    if (metricBoxes[0]) {
+      const bold = metricBoxes[0].querySelector("p.font-bold");
+      const sub = metricBoxes[0].querySelector("p.text-xs");
+      if (bold) bold.textContent = d.domain_age;
+      if (sub) {
+        sub.textContent =
+          d.risk_score >= 70 ? "Risiko Sangat Tinggi" : "Dalam Batas Wajar";
+        sub.className = `text-xs mt-1 ${d.risk_score >= 70 ? "text-red-400" : "text-green-400"}`;
+      }
+    }
+    if (metricBoxes[1]) {
+      const bold = metricBoxes[1].querySelector("p.font-bold");
+      const sub = metricBoxes[1].querySelector("p.text-xs");
+      if (bold) bold.textContent = d.ssl_status;
+      if (sub) {
+        sub.textContent =
+          d.ssl_status === "Valid"
+            ? "Identitas Terverifikasi"
+            : "Identitas Tidak Terverifikasi";
+        sub.className = `text-xs mt-1 ${d.ssl_status === "Valid" ? "text-green-400" : "text-red-400"}`;
+      }
+    }
+
+    const checkRows = result.querySelectorAll(".check-row");
+    const checks = [
+      { fail: d.checks.domain_spoofing },
+      { fail: d.checks.whois_hidden },
+      { fail: !d.checks.malware_clean },
+      { fail: d.checks.ip_blacklisted },
+    ];
+    checkRows.forEach((row, i) => {
+      if (!checks[i]) return;
+      const badge = row.querySelector("[class*='badge-']");
+      if (badge) {
+        badge.className = checks[i].fail
+          ? "badge-danger-sm"
+          : "badge-success-sm";
+        badge.textContent = checks[i].fail ? "Gagal" : "Lulus";
+      }
+    });
+
+    const summaryEl = result.querySelector(
+      ".glass-card .text-slate-400.text-sm.mt-1.leading-relaxed",
+    );
+    if (summaryEl) summaryEl.textContent = d.summary;
+
+    setTimeout(
+      () => result.scrollIntoView({ behavior: "smooth", block: "start" }),
+      50,
+    );
+    toast(
+      d.is_dangerous ? "warning" : "success",
+      d.is_dangerous ? "⚠ URL Berbahaya!" : "✓ URL Aman",
+      d.summary,
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     ANALISIS PESAN — Gemini AI
+  ═══════════════════════════════════════════════════════ */
+
+  async function runMessage() {
+    const input = document.getElementById("msg-input")?.value.trim();
+    if (!input) {
       toast(
         "warning",
         "Input Kosong",
         "Masukkan teks pesan yang ingin dianalisis.",
       );
-      input.focus();
+      document.getElementById("msg-input")?.focus();
       return;
     }
-    simulateScan("msg-submit", () => {
-      document.getElementById("msg-placeholder").classList.add("hidden");
-      const result = document.getElementById("msg-result");
-      result.classList.remove("hidden");
-      result.classList.add("page-enter");
-      setTimeout(() => result.classList.remove("page-enter"), 400);
-      // Animate progress bar
-      setTimeout(() => {
-        const bar = document.getElementById("msg-progress");
-        if (bar) bar.style.width = "98.4%";
-      }, 200);
-    });
+
+    const btn = document.getElementById("msg-submit");
+    const origHTML = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> Menganalisis...';
+    btn.disabled = true;
+    document.getElementById("msg-placeholder").classList.remove("hidden");
+    document.getElementById("msg-result").classList.add("hidden");
+
+    const system = `Kamu adalah sistem deteksi penipuan pesan profesional. Analisis pesan berikut dan kembalikan HANYA valid JSON tanpa teks apapun di luar JSON, tanpa markdown.
+
+Format JSON:
+{
+  "is_scam": boolean,
+  "risk_level": string yaitu Rendah atau Sedang atau Tinggi atau Kritis,
+  "confidence": number antara 0-100,
+  "scam_type": string,
+  "summary": string 1-2 kalimat Bahasa Indonesia,
+  "red_flags": [
+    { "title": string, "description": string }
+  ]
+}`;
+
+    try {
+      const raw = await askGemini(system, `Analisis pesan ini:\n\n${input}`);
+      const data = parseJSON(raw);
+      if (!data) throw new Error("Gagal parsing respons AI");
+      renderMessage(data);
+    } catch (err) {
+      console.error(err);
+      toast(
+        "error",
+        "Gagal Menganalisis",
+        err.message || "Periksa koneksi internet atau API key.",
+      );
+    } finally {
+      btn.innerHTML = origHTML;
+      btn.disabled = false;
+    }
+  }
+
+  function renderMessage(d) {
+    document.getElementById("msg-placeholder").classList.add("hidden");
+    const result = document.getElementById("msg-result");
+    result.classList.remove("hidden");
+    result.classList.add("page-enter");
+    setTimeout(() => result.classList.remove("page-enter"), 400);
+
+    const badge = result.querySelector("[class*='badge-']");
+    if (badge) {
+      badge.className = d.is_scam
+        ? "badge-danger"
+        : "badge-success-sm text-sm px-3 py-1";
+      badge.textContent = `${d.risk_level} Risk`;
+    }
+
+    const titleEl = result.querySelector("h4.font-bold");
+    if (titleEl)
+      titleEl.textContent = d.is_scam
+        ? `${d.scam_type} Terdeteksi`
+        : "Pesan Terlihat Aman";
+    const subtitleEl = titleEl?.nextElementSibling;
+    if (subtitleEl)
+      subtitleEl.textContent = d.is_scam
+        ? `Ditemukan ${d.red_flags.length} tanda bahaya kritis`
+        : "Tidak ada tanda bahaya yang ditemukan";
+
+    setTimeout(() => {
+      const bar = document.getElementById("msg-progress");
+      if (bar) bar.style.width = `${d.confidence}%`;
+    }, 200);
+    const confLabel = result
+      .querySelector(".progress-track")
+      ?.previousElementSibling?.querySelector(".font-bold");
+    if (confLabel) confLabel.textContent = `${d.confidence}%`;
+
+    const flagsContainer = result.querySelector(".space-y-2");
+    if (flagsContainer) {
+      flagsContainer.innerHTML =
+        d.red_flags.length > 0
+          ? d.red_flags
+              .map(
+                (flag) => `
+            <div class="reason-card">
+              <div class="icon-box-sm flex-shrink-0">
+                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-medium">${flag.title}</p>
+                <p class="text-slate-400 text-xs mt-0.5">${flag.description}</p>
+              </div>
+            </div>`,
+              )
+              .join("")
+          : `<div class="reason-card">
+             <div class="icon-box-sm flex-shrink-0">
+               <svg class="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+               </svg>
+             </div>
+             <div>
+               <p class="text-sm font-medium">Tidak ada tanda bahaya</p>
+               <p class="text-slate-400 text-xs mt-0.5">Pesan ini terlihat aman berdasarkan analisis AI.</p>
+             </div>
+           </div>`;
+    }
+
+    toast(
+      d.is_scam ? "warning" : "success",
+      d.is_scam ? "⚠ Pesan Mencurigakan!" : "✓ Pesan Aman",
+      d.summary,
+    );
   }
 
   function resetMsg() {
-    const result = document.getElementById("msg-result");
-    const placeholder = document.getElementById("msg-placeholder");
-    if (result) result.classList.add("hidden");
-    if (placeholder) placeholder.classList.remove("hidden");
+    document.getElementById("msg-result")?.classList.add("hidden");
+    document.getElementById("msg-placeholder")?.classList.remove("hidden");
     const bar = document.getElementById("msg-progress");
     if (bar) bar.style.width = "0%";
   }
 
-  /* ── Toast ────────────────────────────────────────────── */
+  /* ═══════════════════════════════════════════════════════
+     TOAST
+  ═══════════════════════════════════════════════════════ */
+
   const TOAST_ICONS = {
     success: {
       bg: "bg-green-500/20",
@@ -306,10 +644,13 @@ const Guardian = (() => {
         el.classList.add("hidden");
         el.classList.remove("hide");
       }, 300);
-    }, 3000);
+    }, 3500);
   }
 
-  /* ── Counter Animation ────────────────────────────────── */
+  /* ═══════════════════════════════════════════════════════
+     ANIMASI & REVEAL
+  ═══════════════════════════════════════════════════════ */
+
   function animateNumber(el, from, to, duration) {
     const start = performance.now();
     function step(now) {
@@ -325,12 +666,10 @@ const Guardian = (() => {
     if (countersRun) return;
     countersRun = true;
     document.querySelectorAll(".counter").forEach((el) => {
-      const target = parseInt(el.dataset.target);
-      animateNumber(el, 0, target, 2000);
+      animateNumber(el, 0, parseInt(el.dataset.target), 2000);
     });
   }
 
-  /* ── Reveal on Scroll ─────────────────────────────────── */
   function runReveal() {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -343,13 +682,11 @@ const Guardian = (() => {
       },
       { threshold: 0.1 },
     );
-
     document
       .querySelectorAll(".reveal-card:not(.visible)")
       .forEach((el) => observer.observe(el));
   }
 
-  /* ── Stats Observer ───────────────────────────────────── */
   function initStatsObserver() {
     const section = document.getElementById("stats");
     if (!section) return;
@@ -365,13 +702,15 @@ const Guardian = (() => {
     obs.observe(section);
   }
 
-  /* ── Close dropdown on outside click ─────────────────── */
+  /* ═══════════════════════════════════════════════════════
+     GLOBAL EVENT LISTENERS
+  ═══════════════════════════════════════════════════════ */
+
   document.addEventListener("click", (e) => {
     const wrap = document.getElementById("nav-dropdown-wrap");
     if (wrap && !wrap.contains(e.target)) closeDropdown();
   });
 
-  /* ── Keyboard shortcuts ───────────────────────────────── */
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeDropdown();
@@ -380,14 +719,16 @@ const Guardian = (() => {
     }
   });
 
-  /* ── Init ─────────────────────────────────────────────── */
+  /* ═══════════════════════════════════════════════════════
+     INIT
+  ═══════════════════════════════════════════════════════ */
+
   function init() {
     go("home");
     initStatsObserver();
     setTimeout(runReveal, 200);
   }
 
-  // Public API
   return {
     go,
     scrollStats,
@@ -402,10 +743,8 @@ const Guardian = (() => {
     runMessage,
     resetMsg,
     toast,
+    init,
   };
 })();
 
-// Boot
-document.addEventListener("DOMContentLoaded", () => {
-  Guardian.go("home");
-});
+document.addEventListener("DOMContentLoaded", () => Guardian.init());
