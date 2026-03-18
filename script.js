@@ -4,7 +4,7 @@
 ═══════════════════════════════════════════════════════════ */
 
 // ── Ganti dengan API Key Google AI Studio kamu ───────────────
-const GEMINI_API_KEY = "AIzaSyCaMPy6ne6CePLBMCd1b9kbexrZG7HV96I"; // ← GANTI JIKA PERLU
+const GEMINI_API_KEY = "AIzaSyCM_GByUCIJlgCfrZQ5bdOdJkUmawZGbQQ"; // ← GANTI JIKA PERLU
 
 const Guardian = (() => {
   const PAGES = ["home", "checker", "url", "message"];
@@ -96,6 +96,7 @@ const Guardian = (() => {
     if (name === "message") resetMsg();
 
     currentPage = name;
+    history.pushState({ page: name }, "", "#" + name);
     updateNav(name);
     window.scrollTo({ top: 0, behavior: "smooth" });
     setTimeout(runReveal, 100);
@@ -385,6 +386,7 @@ Format JSON:
     result.classList.add("page-enter");
     setTimeout(() => result.classList.remove("page-enter"), 400);
 
+    // Risk arc animasi
     setTimeout(() => {
       const arc = document.getElementById("risk-arc");
       const numEl = document.getElementById("risk-num");
@@ -397,8 +399,29 @@ Format JSON:
             : d.risk_score >= 40
               ? "#f59e0b"
               : "#22c55e";
+
+      // Label risiko di bawah angka
+      const riskLabel = result.querySelector(
+        "#risk-num ~ span.text-xs.font-semibold, #risk-num + span + span",
+      );
+      if (riskLabel) {
+        riskLabel.textContent =
+          d.risk_score >= 70
+            ? "Risiko Tinggi"
+            : d.risk_score >= 40
+              ? "Risiko Sedang"
+              : "Risiko Rendah";
+        riskLabel.className = `text-xs font-semibold mt-0.5 ${
+          d.risk_score >= 70
+            ? "text-red-400"
+            : d.risk_score >= 40
+              ? "text-yellow-400"
+              : "text-green-400"
+        }`;
+      }
     }, 100);
 
+    // Domain Age & SSL
     const metricBoxes = result.querySelectorAll(".metric-box");
     if (metricBoxes[0]) {
       const bold = metricBoxes[0].querySelector("p.font-bold");
@@ -406,8 +429,8 @@ Format JSON:
       if (bold) bold.textContent = d.domain_age;
       if (sub) {
         sub.textContent =
-          d.risk_score >= 70 ? "Risiko Sangat Tinggi" : "Dalam Batas Wajar";
-        sub.className = `text-xs mt-1 ${d.risk_score >= 70 ? "text-red-400" : "text-green-400"}`;
+          d.risk_score >= 50 ? "Risiko Sangat Tinggi" : "Dalam Batas Wajar";
+        sub.className = `text-xs mt-1 ${d.risk_score >= 50 ? "text-red-400" : "text-green-400"}`;
       }
     }
     if (metricBoxes[1]) {
@@ -423,6 +446,41 @@ Format JSON:
       }
     }
 
+    // Warning card — hijau jika skor < 50, merah jika >= 50
+    const warningBadge = result.querySelector(
+      "[class*='badge-danger'].mb-2, [class*='badge-success'].mb-2",
+    );
+    const warningTitle = result.querySelector(
+      ".glass-card h3.font-bold.text-lg",
+    );
+    const warningSummary = result.querySelector(
+      ".glass-card .text-slate-400.text-sm.mt-1.leading-relaxed",
+    );
+
+    if (d.risk_score < 50) {
+      if (warningBadge) {
+        warningBadge.className =
+          "badge-success-sm text-sm px-3 py-1 mb-2 inline-block";
+        warningBadge.textContent = "✓ Terlihat Aman";
+      }
+      if (warningTitle) {
+        warningTitle.textContent = "Situs Terlihat Aman";
+        warningTitle.className = "font-bold text-lg text-green-400";
+      }
+    } else {
+      if (warningBadge) {
+        warningBadge.className = "badge-danger mb-2 inline-block";
+        warningBadge.textContent = "⚠ Peringatan Kritis";
+      }
+      if (warningTitle) {
+        warningTitle.textContent = "Potensi Situs Phishing";
+        warningTitle.className = "font-bold text-lg";
+      }
+    }
+
+    if (warningSummary) warningSummary.textContent = d.summary;
+
+    // Check rows
     const checkRows = result.querySelectorAll(".check-row");
     const checks = [
       { fail: d.checks.domain_spoofing },
@@ -441,18 +499,13 @@ Format JSON:
       }
     });
 
-    const summaryEl = result.querySelector(
-      ".glass-card .text-slate-400.text-sm.mt-1.leading-relaxed",
-    );
-    if (summaryEl) summaryEl.textContent = d.summary;
-
     setTimeout(
       () => result.scrollIntoView({ behavior: "smooth", block: "start" }),
       50,
     );
     toast(
-      d.is_dangerous ? "warning" : "success",
-      d.is_dangerous ? "⚠ URL Berbahaya!" : "✓ URL Aman",
+      d.risk_score < 50 ? "success" : "warning",
+      d.risk_score < 50 ? "✓ URL Aman" : "⚠ URL Berbahaya!",
       d.summary,
     );
   }
@@ -724,7 +777,8 @@ Format JSON:
   ═══════════════════════════════════════════════════════ */
 
   function init() {
-    go("home");
+    const startPage = location.hash.replace("#", "") || "home";
+    go(PAGES.includes(startPage) ? startPage : "home");
     initStatsObserver();
     setTimeout(runReveal, 200);
   }
@@ -747,4 +801,8 @@ Format JSON:
   };
 })();
 
+window.addEventListener("popstate", (e) => {
+  const page = e.state?.page || "home";
+  Guardian.go(page);
+});
 document.addEventListener("DOMContentLoaded", () => Guardian.init());

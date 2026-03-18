@@ -39,72 +39,110 @@ body {
   -webkit-backdrop-filter: blur(16px);
 }
 
-/* ── Glow Orbs ────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   GLOW SYSTEM — Redesigned to match target design
+   Efek spotlight biru dramatis dari atas-tengah
+══════════════════════════════════════════════════════════ */
+
 .glow-orb {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(100px);
+  filter: blur(80px);
   pointer-events: none;
 }
 
+/* ── Hero Section ─────────────────────────────────────────── */
 .hero-section {
   position: relative;
   overflow: hidden;
 }
+
 .hero-glow-wrapper {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
 }
-.glow-left,
-.glow-right,
+
+/* Spotlight utama dari atas tengah — efek kerucut biru terang */
 .glow-center {
   position: absolute;
+  width: 900px;
+  height: 700px;
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
   border-radius: 50%;
   pointer-events: none;
-  filter: blur(40px);
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(56, 139, 253, 0.75) 0%,
+    rgba(59, 130, 246, 0.55) 18%,
+    rgba(37, 99, 235, 0.35) 38%,
+    rgba(29, 78, 216, 0.15) 58%,
+    rgba(15, 23, 42, 0) 78%,
+    transparent 100%
+  );
+  filter: blur(30px);
   mix-blend-mode: screen;
 }
+
+/* Glow kiri — aksen biru sisi kiri */
 .glow-left {
-  width: 420px;
-  height: 500px;
-  top: -70px;
-  left: -120px;
+  position: absolute;
+  width: 500px;
+  height: 600px;
+  top: -100px;
+  left: -180px;
+  border-radius: 50%;
+  pointer-events: none;
   background: radial-gradient(
     ellipse at center,
-    rgba(59, 130, 246, 0.38) 0%,
-    rgba(56, 189, 248, 0.23) 28%,
+    rgba(59, 130, 246, 0.45) 0%,
+    rgba(56, 189, 248, 0.28) 30%,
     rgba(37, 99, 235, 0.12) 60%,
     transparent 100%
   );
+  filter: blur(50px);
+  mix-blend-mode: screen;
 }
+
+/* Glow kanan — aksen biru sisi kanan */
 .glow-right {
-  width: 420px;
-  height: 500px;
-  top: -70px;
-  right: -120px;
+  position: absolute;
+  width: 500px;
+  height: 600px;
+  top: -100px;
+  right: -180px;
+  border-radius: 50%;
+  pointer-events: none;
   background: radial-gradient(
     ellipse at center,
-    rgba(59, 130, 246, 0.28) 0%,
-    rgba(56, 189, 248, 0.2) 32%,
-    rgba(15, 23, 42, 0.06) 68%,
+    rgba(59, 130, 246, 0.4) 0%,
+    rgba(56, 189, 248, 0.22) 32%,
+    rgba(15, 23, 42, 0.05) 68%,
     transparent 100%
   );
+  filter: blur(50px);
+  mix-blend-mode: screen;
 }
-.glow-center {
-  width: 650px;
-  height: 380px;
-  top: 34%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+
+/* ── Sub-page glow (Checker, URL, Message) ───────────────── */
+/* Glow orb biru terang di bagian atas halaman */
+#page-checker .glow-orb,
+#page-url .glow-orb,
+#page-message .glow-orb {
+  width: 700px !important;
+  height: 400px !important;
+  opacity: 0.55 !important;
+  filter: blur(60px) !important;
   background: radial-gradient(
-    ellipse at center,
-    rgba(125, 211, 252, 0.16) 0%,
-    rgba(59, 130, 246, 0.08) 38%,
-    rgba(30, 64, 175, 0.01) 80%,
-    transparent 100%
-  );
+    ellipse at 50% 0%,
+    rgba(56, 139, 253, 0.9) 0%,
+    rgba(59, 130, 246, 0.6) 25%,
+    rgba(37, 99, 235, 0.25) 55%,
+    transparent 80%
+  ) !important;
 }
 
 /* ── Page Transitions ─────────────────────────────────────── */
@@ -526,6 +564,16 @@ body {
     padding-top: 64px;
   }
   .glow-orb {
-    opacity: 0.07 !important;
+    opacity: 0.35 !important;
+  }
+  .glow-center {
+    width: 500px;
+    height: 400px;
+    top: -120px;
+  }
+  .glow-left,
+  .glow-right {
+    width: 280px;
+    height: 350px;
   }
 }
