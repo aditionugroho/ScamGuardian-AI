@@ -4,7 +4,7 @@
 ═══════════════════════════════════════════════════════════ */
 
 // ── Ganti dengan API Key Google AI Studio kamu ───────────────
-const GEMINI_API_KEY = "AIzaSyCM_GByUCIJlgCfrZQ5bdOdJkUmawZGbQQ"; // ← GANTI JIKA PERLU
+
 
 const Guardian = (() => {
   const PAGES = ["home", "checker", "url", "message"];
@@ -170,17 +170,18 @@ const Guardian = (() => {
   /* ── Scroll to Stats ──────────────────────────────────── */
   function scrollStats() {
     closeMobile();
+    const trigger = () => {
+      const el = document.getElementById("stats");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        setTimeout(() => runCounters(true), 800);
+      }
+    };
     if (currentPage !== "home") {
       go("home");
-      setTimeout(() => {
-        document
-          .getElementById("stats")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 400);
+      setTimeout(trigger, 400);
     } else {
-      document
-        .getElementById("stats")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      trigger();
     }
   }
 
@@ -224,19 +225,26 @@ const Guardian = (() => {
     btn.disabled = true;
     document.getElementById("checker-result").classList.add("hidden");
 
-    const system = `Kamu adalah sistem deteksi penipuan telepon profesional. Analisis nomor telepon yang diberikan dan kembalikan HANYA valid JSON tanpa teks apapun di luar JSON, tanpa markdown.
+    const system = `Kamu adalah pakar keamanan siber (Guardbot) yang ahli mendeteksi penipuan di Indonesia. Tugasmu adalah menganalisis nomor telepon dan memberikan laporan teknis sekaligus edukatif.
+Kembalikan HANYA valid JSON tanpa teks apapun di luar JSON, tanpa markdown.
 
-Format JSON yang harus dikembalikan:
+Instruksi Khusus:
+1. Identifikasi apakah nomor tersebut milik instansi beneran atau sering dilaporkan sebagai spam/telemarketing/penipuan (Vishing).
+2. Tentukan lokasi berdasarkan kode area atau data sejarah.
+3. Jika nomor mencurigakan, berikan skor risiko tinggi (>80).
+4. Summary harus dalam Bahasa Indonesia yang profesional dan waspada.
+
+Format JSON:
 {
   "is_scam": boolean,
-  "risk_score": number antara 0-100,
-  "threat_type": string,
-  "operator": string,
+  "risk_score": number (0-100),
+  "threat_type": string (misal: "Telemarketing", "Penipuan Hadiah", "Vishing", "Aman"),
+  "operator": string (misal: "Telkomsel", "Indosat", "VOIP"),
   "location": string,
   "last_active": string,
   "report_count": number,
-  "summary": string 1-2 kalimat Bahasa Indonesia,
-  "active_since": string
+  "summary": string 1-2 kalimat (Bahasa Indonesia),
+  "active_since": string (estimasi tahun/bulan)
 }`;
 
     try {
@@ -344,21 +352,27 @@ Format JSON yang harus dikembalikan:
     btn.disabled = true;
     document.getElementById("url-result").classList.add("hidden");
 
-    const system = `Kamu adalah sistem keamanan siber profesional. Analisis URL berikut untuk mendeteksi phishing, malware, dan penipuan. Kembalikan HANYA valid JSON tanpa teks apapun di luar JSON, tanpa markdown.
+    const system = `Kamu adalah mesin analis URL keamanan siber. Fokus pada deteksi Phishing, Malware, dan Typosquatting (peniruan domain bank/e-commerce Indonesia seperti BCA, Shopee, Tokopedia, dll).
+Kembalikan HANYA valid JSON tanpa teks apapun di luar JSON, tanpa markdown.
+
+Instruksi:
+1. Periksa apakah URL menggunakan karakter aneh, domain murah (.xyz, .top, .online), atau sub-domain yang mencurigakan.
+2. Analisis kesamaan nama dengan brand populer.
+3. Summary harus menjelaskan secara spesifik kenapa URL ini berbahaya atau aman dalam Bahasa Indonesia.
 
 Format JSON:
 {
   "is_dangerous": boolean,
-  "risk_score": number antara 0-100,
-  "threat_type": string,
+  "risk_score": number (0-100),
+  "threat_type": string (misal: "Phishing", "Malware", "Typosquatting", "Social Engineering"),
   "domain_age": string,
-  "ssl_status": string yaitu Valid atau Tidak Valid atau Tidak Ada,
-  "summary": string 1-2 kalimat Bahasa Indonesia,
+  "ssl_status": "Valid" | "Tidak Valid" | "Tidak Ada",
+  "summary": string (Bahasa Indonesia),
   "checks": {
-    "domain_spoofing": boolean true jika gagal berbahaya,
-    "whois_hidden": boolean true jika gagal berbahaya,
-    "malware_clean": boolean true jika lulus aman,
-    "ip_blacklisted": boolean true jika gagal berbahaya
+    "domain_spoofing": boolean,
+    "whois_hidden": boolean,
+    "malware_clean": boolean,
+    "ip_blacklisted": boolean
   }
 }`;
 
@@ -533,15 +547,26 @@ Format JSON:
     document.getElementById("msg-placeholder").classList.remove("hidden");
     document.getElementById("msg-result").classList.add("hidden");
 
-    const system = `Kamu adalah sistem deteksi penipuan pesan profesional. Analisis pesan berikut dan kembalikan HANYA valid JSON tanpa teks apapun di luar JSON, tanpa markdown.
+    const system = `Kamu adalah analis forensik digital yang sangat teliti dalam mendeteksi penipuan pesan (SMS/WhatsApp) di Indonesia.
+Kembalikan HANYA valid JSON tanpa teks apapun di luar JSON, tanpa markdown.
+
+Kamu harus mengenali pola-pola kritis ini:
+1. Pancingan File APK (Undangan Nikah digital, Tagihan Kurir/JNE/Sicepat, Foto Paket).
+2. Penipuan Menang Undian (Shopee, Lazada, Dana, dll).
+3. Modus Kerja Freelance (Like & Subscribe YouTube berbayar).
+4. Penagihan Hutang Palsu atau Ancaman Pinjol.
+
+Instruksi:
+- Jika ada kata "Instal", "APK", "Cek Paket", atau link ke domain mencurigakan, beri skor risiko Tinggi/Kritis.
+- Red Flags harus menjelaskan secara detail apa yang mencurigakan bagi orang awam.
 
 Format JSON:
 {
   "is_scam": boolean,
-  "risk_level": string yaitu Rendah atau Sedang atau Tinggi atau Kritis,
-  "confidence": number antara 0-100,
-  "scam_type": string,
-  "summary": string 1-2 kalimat Bahasa Indonesia,
+  "risk_level": "Rendah" | "Sedang" | "Tinggi" | "Kritis",
+  "confidence": number (0-100),
+  "scam_type": string (misal: "APK Scam", "Lottery Fraud", "Social Engineering"),
+  "summary": string (Bahasa Indonesia),
   "red_flags": [
     { "title": string, "description": string }
   ]
@@ -715,11 +740,11 @@ Format JSON:
     requestAnimationFrame(step);
   }
 
-  function runCounters() {
-    if (countersRun) return;
+  function runCounters(force = false) {
+    if (countersRun && !force) return;
     countersRun = true;
     document.querySelectorAll(".counter").forEach((el) => {
-      animateNumber(el, 0, parseInt(el.dataset.target), 2000);
+      animateNumber(el, 0, parseInt(el.dataset.target), 3000);
     });
   }
 

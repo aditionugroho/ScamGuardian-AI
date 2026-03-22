@@ -6,15 +6,20 @@
     <title>Guardian - Keamanan Siber Berbasis AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="style.css" />
+    <!-- Remix Icon -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css"
+      rel="stylesheet"
+    />
     <script>
       tailwind.config = {
         theme: {
           extend: {
-            fontFamily: { inter: ["Inter", "sans-serif"] },
+            fontFamily: { sans: ["'Plus Jakarta Sans'", "sans-serif"] },
           },
         },
       };
@@ -543,11 +548,11 @@
             <h2 class="text-3xl font-black">Angka yang Berbicara</h2>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div class="stat-card reveal-card p-8 rounded-2xl text-center">
+            <div class="stat-card reveal-card p-8 rounded-2xl text-center" style="transition-delay: 0.1s">
               <p class="text-slate-400 text-sm mb-3">Laporan Terverifikasi</p>
               <div class="flex items-end justify-center gap-1">
                 <span class="text-5xl font-black counter" data-target="50"
-                  >0</span
+                  >50</span
                 >
                 <span class="text-3xl font-black pb-1">K+</span>
               </div>
@@ -557,12 +562,12 @@
             </div>
             <div
               class="stat-card reveal-card p-8 rounded-2xl text-center"
-              style="transition-delay: 0.1s"
+              style="transition-delay: 0.2s"
             >
               <p class="text-slate-400 text-sm mb-3">Penipuan Diblokir</p>
               <div class="flex items-end justify-center gap-1">
                 <span class="text-5xl font-black counter" data-target="10"
-                  >0</span
+                  >10</span
                 >
                 <span class="text-3xl font-black pb-1">K+</span>
               </div>
@@ -572,7 +577,7 @@
             </div>
             <div
               class="stat-card reveal-card p-8 rounded-2xl text-center"
-              style="transition-delay: 0.2s"
+              style="transition-delay: 0.3s"
             >
               <p class="text-slate-400 text-sm mb-3">Kecepatan Deteksi</p>
               <div class="flex items-end justify-center gap-1">
@@ -631,6 +636,7 @@
           <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-5">
             <div
               class="feature-card reveal-card p-6 rounded-2xl cursor-pointer"
+              style="transition-delay: 0.1s"
               onclick="Guardian.go('checker')"
             >
               <div class="icon-box mb-5">
@@ -657,8 +663,8 @@
             </div>
             <div
               class="feature-card reveal-card p-6 rounded-2xl cursor-pointer"
+              style="transition-delay: 0.2s"
               onclick="Guardian.go('url')"
-              style="transition-delay: 0.1s"
             >
               <div class="icon-box mb-5">
                 <svg
@@ -684,8 +690,8 @@
             </div>
             <div
               class="feature-card reveal-card p-6 rounded-2xl cursor-pointer sm:col-span-2 md:col-span-1"
+              style="transition-delay: 0.3s"
               onclick="Guardian.go('message')"
-              style="transition-delay: 0.2s"
             >
               <div class="icon-box mb-5">
                 <svg
@@ -736,20 +742,20 @@
                 href="#"
                 onclick="Guardian.toast('info', 'Instagram', 'Segera hadir!')"
                 class="social-btn"
-                >IG</a
-              >
+                title="Instagram"
+                ><i class="ri-instagram-line"></i></a>
               <a
                 href="#"
                 onclick="Guardian.toast('info', 'YouTube', 'Segera hadir!')"
                 class="social-btn"
-                >YT</a
-              >
+                title="YouTube"
+                ><i class="ri-youtube-line"></i></a>
               <a
                 href="#"
                 onclick="Guardian.toast('info', 'TikTok', 'Segera hadir!')"
                 class="social-btn"
-                >TK</a
-              >
+                title="TikTok"
+                ><i class="ri-tiktok-line"></i></a>
             </div>
             <p class="text-slate-600 text-xs mt-5">
               © 2026 Guardian. All rights reserved.
@@ -851,15 +857,9 @@
             </ul>
           </div>
         </div>
-        <div
-          class="relative h-28 overflow-hidden select-none pointer-events-none"
-        >
-          <div
-            class="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/60 to-transparent z-10"
-          ></div>
-          <p
-            class="text-[9rem] font-black text-white/[0.04] tracking-[0.3em] text-center leading-none"
-          >
+        <div class="relative h-28 md:h-36 lg:h-48 overflow-hidden select-none">
+          <div class="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/60 to-transparent z-10 pointer-events-none"></div>
+          <p class="footer-logo-text font-black text-white/[0.04] text-center leading-none">
             GUARDIAN
           </p>
         </div>
@@ -2062,8 +2062,8 @@
                   return false;
                 "
                 class="social-btn"
-                >IG</a
-              >
+                title="Instagram"
+                ><i class="ri-instagram-line"></i></a>
               <a
                 href="#"
                 onclick="
@@ -2071,8 +2071,8 @@
                   return false;
                 "
                 class="social-btn"
-                >YT</a
-              >
+                title="YouTube"
+                ><i class="ri-youtube-line"></i></a>
               <a
                 href="#"
                 onclick="
@@ -2080,8 +2080,8 @@
                   return false;
                 "
                 class="social-btn"
-                >TK</a
-              >
+                title="TikTok"
+                ><i class="ri-tiktok-line"></i></a>
             </div>
             <p class="text-slate-600 text-xs mt-5">
               © 2026 Guardian. All rights reserved.
@@ -2183,15 +2183,9 @@
             </ul>
           </div>
         </div>
-        <div
-          class="relative h-28 overflow-hidden select-none pointer-events-none"
-        >
-          <div
-            class="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/60 to-transparent z-10"
-          ></div>
-          <p
-            class="text-[9rem] font-black text-white/[0.04] tracking-[0.3em] text-center leading-none"
-          >
+        <div class="relative h-28 md:h-36 lg:h-48 overflow-hidden select-none">
+          <div class="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/60 to-transparent z-10 pointer-events-none"></div>
+          <p class="footer-logo-text font-black text-white/[0.04] text-center leading-none">
             GUARDIAN
           </p>
         </div>
