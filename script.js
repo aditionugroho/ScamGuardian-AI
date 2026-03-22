@@ -4,7 +4,7 @@
 ═══════════════════════════════════════════════════════════ */
 
 // ── Ganti dengan API Key Google AI Studio kamu ───────────────
-
+const GEMINI_API_KEY = CONFIG.GEMINI_API_KEY;
 
 const Guardian = (() => {
   const PAGES = ["home", "checker", "url", "message"];
@@ -32,7 +32,7 @@ const Guardian = (() => {
         ],
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 1000,
+          maxOutputTokens: 2048,
         },
       }),
     });
@@ -47,10 +47,22 @@ const Guardian = (() => {
   }
 
   function parseJSON(text) {
+    console.log("RAW RESPONSE:", text); // ← tambahkan ini
     try {
-      return JSON.parse(text.replace(/```json|```/g, "").trim());
+      return JSON.parse(text.trim());
     } catch {
-      return null;
+      try {
+        const cleaned = text.replace(/```json|```/g, "").trim();
+        return JSON.parse(cleaned);
+      } catch {
+        try {
+          const match = text.match(/\{[\s\S]*\}/);
+          if (match) return JSON.parse(match[0]);
+          return null;
+        } catch {
+          return null;
+        }
+      }
     }
   }
 
